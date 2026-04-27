@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>World in Motion | Reality Bending Puzzle</title>
+    <link rel="stylesheet" href="style.css">
+    <meta name="description" content="A physics-based puzzle game where you control gravity to guide an orb through a futuristic world.">
+</head>
+<body>
+    <div id="game-container">
+        <!-- HUD -->
+        <div id="hud">
+            <div class="stat-box">Level: <span id="level-num">1</span></div>
+            <div class="stat-box">Time: <span id="timer">00:00</span></div>
+            <button id="pause-btn" class="stat-box" style="pointer-events: auto; cursor: pointer; border: 1px solid var(--player-color);">PAUSE</button>
+            <button id="mute-btn" class="stat-box" style="pointer-events: auto; cursor: pointer; border: 1px solid var(--accent-color);">MUTE</button>
+        </div>
+
+        <!-- Canvas -->
+        <canvas id="gameCanvas"></canvas>
+
+        <!-- Main Menu Overlay -->
+        <div id="main-menu" class="overlay">
+            <div class="menu-card">
+                <h1>World In Motion</h1>
+                <p>Reality is fluid. Space is yours to command.</p>
+                <button id="start-btn" class="btn">Initialize System</button>
+            </div>
+        </div>
+
+        <!-- Reality Initialization Screen -->
+        <div id="init-screen" class="overlay hidden">
+            <div class="menu-card" style="border: none; background: transparent; box-shadow: none;">
+                <h1 id="init-status">Initializing World Physics...</h1>
+                <div id="progress-container" style="width: 300px; height: 4px; background: var(--glass-border); margin: 20px auto; overflow: hidden;">
+                    <div id="progress-bar" style="width: 0%; height: 100%; background: var(--player-color); transition: width 0.1s;"></div>
+                </div>
+                <p id="init-subtext">Stabilizing Gravity Fields...</p>
+                <button id="enter-btn" class="btn hidden">Enter World</button>
+            </div>
+        </div>
+
+        <!-- System Briefing Screen -->
+        <div id="briefing-screen" class="overlay hidden">
+            <div class="menu-card">
+                <!-- Left Side: Rules -->
+                <div>
+                    <h2 style="font-family: 'Orbitron'; color: var(--player-color); margin-bottom: 20px; letter-spacing: 2px;">SYSTEM BRIEFING</h2>
+                    <div style="font-size: 0.9rem; opacity: 0.9;">
+                        <p><strong>OBJECTIVE:</strong> Guide the orb to the green rift.</p>
+                        <p><strong>MECHANIC:</strong> Your cursor is the center of gravity. Shift it to alter the world's pull.</p>
+                        <ul style="margin-left: 20px; margin-bottom: 20px;">
+                            <li>Avoid structural hazards</li>
+                            <li>Harness momentum and friction</li>
+                        </ul>
+                        <p style="color: var(--accent-color); font-style: italic;">"The world reacts to your movement."</p>
+                    </div>
+                </div>
+
+                <!-- Right Side: Settings -->
+                <div style="flex: 1; border-left: 1px solid var(--glass-border); padding-left: 40px;">
+                    <h2 style="font-family: 'Orbitron'; color: var(--accent-color); margin-bottom: 20px; letter-spacing: 2px;">CONTROL PANEL</h2>
+                    
+                    <div class="setting-item" style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+                        <span>AUDIO STREAM</span>
+                        <label class="switch">
+                            <input type="checkbox" id="music-toggle" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="setting-item" style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+                        <span>SFX FEEDBACK</span>
+                        <label class="switch">
+                            <input type="checkbox" id="sfx-toggle" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="setting-item" style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+                        <span>SCREEN SHAKE</span>
+                        <label class="switch">
+                            <input type="checkbox" id="shake-toggle" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    
+                    <button id="final-start-btn" class="btn" style="width: 100%; margin-top: 20px;">START SIMULATION</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pause Overlay -->
+        <div id="pause-screen" class="overlay hidden">
+            <div class="menu-card">
+                <h1>SIMULATION PAUSED</h1>
+                <p>Reality stability maintained. Ready to resume.</p>
+                <button id="resume-btn" class="btn">RESUME</button>
+            </div>
+        </div>
+
+        <!-- Level Complete Overlay -->
+        <div id="level-complete" class="overlay hidden">
+            <div class="menu-card">
+                <h1>Level Sync Complete</h1>
+                <p>Gravity stability established. Sector progression initiated.</p>
+                
+                <div id="level-chart">
+                    <!-- Dynamic level nodes will be injected here -->
+                </div>
+
+                <button id="next-btn" class="btn">Initiate Next Sync</button>
+            </div>
+        </div>
+
+        <!-- Game Over Overlay -->
+        <div id="game-over" class="overlay hidden">
+            <div class="menu-card">
+                <h1>System Failure</h1>
+                <p>Orb structural integrity compromised. Reality reset required.</p>
+                <button id="retry-btn" class="btn">Reset</button>
+            </div>
+        </div>
+
+        <!-- Gravity Indicator UI -->
+        <div id="gravity-indicator">
+            <div id="gravity-arrow"></div>
+        </div>
+    </div>
+
+    <script src="game.js"></script>
+</body>
+</html>
