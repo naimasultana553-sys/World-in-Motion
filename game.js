@@ -133,6 +133,42 @@ const levels = [
     }
 ];
 
+// Dynamically generate levels 4 to 500 with increasing difficulty
+for (let i = 3; i < 500; i++) {
+    const difficulty = i / 500;
+    const numObstacles = Math.floor(2 + difficulty * 15);
+    const platforms = [
+        { x: 0, y: 0, w: 800, h: 20 },
+        { x: 0, y: 780, w: 800, h: 20 },
+        { x: 0, y: 0, w: 20, h: 800 },
+        { x: 780, y: 0, w: 20, h: 800 }
+    ];
+
+    for (let j = 0; j < numObstacles; j++) {
+        const isVertical = Math.random() > 0.5;
+        const w = isVertical ? (10 + Math.random() * 20) : (50 + Math.random() * 300);
+        const h = isVertical ? (50 + Math.random() * 300) : (10 + Math.random() * 20);
+        const x = 50 + Math.random() * (700 - w);
+        const y = 50 + Math.random() * (700 - h);
+        platforms.push({ x, y, w, h });
+    }
+
+    const goalR = Math.max(10, 25 - difficulty * 15);
+    
+    levels.push({
+        platforms: platforms,
+        goal: { 
+            x: 100 + Math.random() * 600, 
+            y: 100 + Math.random() * 600, 
+            r: goalR 
+        },
+        start: { 
+            x: 100 + Math.random() * 600, 
+            y: 100 + Math.random() * 600 
+        }
+    });
+}
+
 class Player {
     constructor(x, y) {
         this.x = x;
