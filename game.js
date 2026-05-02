@@ -658,6 +658,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const authEmail = document.getElementById('auth-email');
     const authPass = document.getElementById('auth-pass');
     const authError = document.getElementById('auth-error');
+    const togglePass = document.getElementById('toggle-pass');
+
+    togglePass.addEventListener('click', () => {
+        const isPass = authPass.type === 'password';
+        authPass.type = isPass ? 'text' : 'password';
+        togglePass.innerText = isPass ? 'HIDE' : 'SHOW';
+    });
 
     const enterMainMenu = (msg) => {
         authScreen.classList.add('hidden');

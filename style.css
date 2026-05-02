@@ -307,9 +307,9 @@ input:checked + .slider:before {
 
 #auth-email, #auth-pass {
     width: 100%;
-    padding: 1rem;
+    padding: 0.7rem;
     font-family: 'Orbitron', sans-serif;
-    font-size: 1.1rem;
+    font-size: 0.85rem;
     color: var(--text-color);
     background: rgba(0, 0, 0, 0.4);
     border: 2px solid var(--glass-border);
