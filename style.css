@@ -503,3 +503,64 @@ input:checked + .slider:before {
     border-bottom: 8px solid var(--accent-color);
     transform: rotate(180deg);
 }
+
+/* Mobile Optimizations */
+@media (max-width: 768px) {
+    .menu-card {
+        width: 95%;
+        padding: 1.5rem;
+    }
+    
+    h1 { font-size: 1.6rem !important; }
+    p { font-size: 0.8rem !important; }
+    
+    .level-grid {
+        grid-template-columns: repeat(5, 1fr);
+        max-height: 300px;
+        gap: 8px;
+    }
+    
+    .level-node {
+        width: 40px;
+        height: 40px;
+        font-size: 0.7rem;
+    }
+    
+    .stat-box {
+        padding: 0.3rem 0.6rem;
+        font-size: 0.6rem;
+    }
+    
+    #gravity-indicator {
+        bottom: 20px;
+        right: 20px;
+        width: 45px;
+        height: 45px;
+    }
+    
+    #gravity-arrow { height: 18px; }
+
+    #splash-text { font-size: 2.5rem !important; }
+    
+    .auth-actions {
+        flex-direction: column;
+        gap: 10px;
+    }
+}
+
+/* Smooth Scrolling & Polish */
+* {
+    -webkit-overflow-scrolling: touch;
+    -webkit-tap-highlight-color: transparent;
+}
+
+::-webkit-scrollbar {
+    width: 6px;
+}
+::-webkit-scrollbar-track {
+    background: rgba(0,0,0,0.1);
+}
+::-webkit-scrollbar-thumb {
+    background: var(--glass-border);
+    border-radius: 10px;
+}

@@ -593,6 +593,7 @@ function createExplosion(x, y, color, count) {
             vx: (Math.random() - 0.5) * 10,
             vy: (Math.random() - 0.5) * 10,
             life: 1.0,
+            decay: 0.02 + Math.random() * 0.03,
             color: color,
             size: Math.random() * 3 + 1
         });
@@ -600,11 +601,15 @@ function createExplosion(x, y, color, count) {
 }
 
 function updateParticles() {
+    // Optimization: Cap particles for performance
+    const maxParticles = window.innerWidth < 768 ? 40 : 100;
+    if (particles.length > maxParticles) particles.splice(0, particles.length - maxParticles);
+
     for (let i = particles.length - 1; i >= 0; i--) {
         const p = particles[i];
         p.x += p.vx;
         p.y += p.vy;
-        p.life -= 0.02;
+        p.life -= p.decay;
         if (p.life <= 0) particles.splice(i, 1);
     }
 }
@@ -716,6 +721,18 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('exit-btn').addEventListener('click', () => {
         document.getElementById('pause-screen').classList.add('hidden');
         showLevelSelectGlobal();
+    });
+
+    document.getElementById('fullscreen-btn').addEventListener('click', () => {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch(err => {
+                alert(`Error: ${err.message}`);
+            });
+            document.getElementById('fullscreen-btn').innerText = 'Exit Fullscreen';
+        } else {
+            document.exitFullscreen();
+            document.getElementById('fullscreen-btn').innerText = 'Full Screen';
+        }
     });
 
     function showLevelSelect() {
