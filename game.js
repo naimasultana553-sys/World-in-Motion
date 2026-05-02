@@ -28,9 +28,11 @@ try {
 
 function saveProgress() {
     if (isGuest) {
-        localStorage.setItem('worldInMotion_guest_level', currentLevel);
-        localStorage.setItem('worldInMotion_guest_retries', retries);
+        localStorage.setItem('worldInMotion_maxLevel', Math.max(parseInt(localStorage.getItem('worldInMotion_maxLevel') || '0'), currentLevel));
+        localStorage.setItem('worldInMotion_lastLevel', currentLevel);
+        localStorage.setItem('worldInMotion_retries', retries);
     } else if (currentEmail && usersDB[currentEmail]) {
+        usersDB[currentEmail].maxLevel = Math.max(usersDB[currentEmail].maxLevel || 0, currentLevel);
         usersDB[currentEmail].level = currentLevel;
         usersDB[currentEmail].retries = retries;
         localStorage.setItem('worldInMotion_usersDB', JSON.stringify(usersDB));
@@ -39,8 +41,8 @@ function saveProgress() {
 
 function loadProgress() {
     if (isGuest) {
-        const savedLevel = localStorage.getItem('worldInMotion_guest_level');
-        const savedRetries = localStorage.getItem('worldInMotion_guest_retries');
+        const savedLevel = localStorage.getItem('worldInMotion_lastLevel');
+        const savedRetries = localStorage.getItem('worldInMotion_retries');
         currentLevel = savedLevel !== null ? parseInt(savedLevel) : 0;
         retries = savedRetries !== null ? parseInt(savedRetries) : 3;
     } else if (currentEmail && usersDB[currentEmail]) {
@@ -116,6 +118,8 @@ const BOUNCE = 0.4;
 const REF_WIDTH = 800;
 const REF_HEIGHT = 800;
 let scale = 1;
+let offsetX = 0;
+let offsetY = 0;
 
 function resize() {
     canvas.width = window.innerWidth * window.devicePixelRatio;
@@ -124,6 +128,10 @@ function resize() {
     
     // Calculate scale relative to reference resolution
     scale = Math.min(window.innerWidth / REF_WIDTH, window.innerHeight / REF_HEIGHT);
+    
+    // Center the game area
+    offsetX = (window.innerWidth - (REF_WIDTH * scale)) / 2;
+    offsetY = (window.innerHeight - (REF_HEIGHT * scale)) / 2;
 }
 window.addEventListener('resize', resize);
 resize();
@@ -132,21 +140,24 @@ resize();
 const levels = [
     {
         platforms: [
-            { x: 0, y: 700, w: 800, h: 50 }, // Ground
-            { x: 200, y: 500, w: 400, h: 20 }, // Step
+            { x: 0, y: 700, w: 800, h: 50, type: 'wall' }, // Ground
+            { x: 200, y: 500, w: 400, h: 20, type: 'platform' }, // Step
+            { x: 0, y: 0, w: 20, h: 800, type: 'wall' },
+            { x: 780, y: 0, w: 20, h: 800, type: 'wall' },
+            { x: 0, y: 0, w: 800, h: 20, type: 'wall' }
         ],
         goal: { x: 700, y: 650, r: 25 },
         start: { x: 100, y: 100 }
     },
     {
         platforms: [
-            { x: 100, y: 200, w: 100, h: 400 },
-            { x: 300, y: 0, w: 100, h: 400 },
-            { x: 500, y: 200, w: 100, h: 400 },
-            { x: 0, y: 0, w: 10, h: 1000 }, // Walls
-            { x: 790, y: 0, w: 10, h: 1000 },
-            { x: 0, y: 0, w: 1000, h: 10 },
-            { x: 0, y: 790, w: 1000, h: 10 },
+            { x: 100, y: 200, w: 100, h: 400, type: 'platform' },
+            { x: 300, y: 0, w: 100, h: 400, type: 'platform' },
+            { x: 500, y: 200, w: 100, h: 400, type: 'platform' },
+            { x: 0, y: 0, w: 20, h: 800, type: 'wall' },
+            { x: 780, y: 0, w: 20, h: 800, type: 'wall' },
+            { x: 0, y: 0, w: 800, h: 20, type: 'wall' },
+            { x: 0, y: 780, w: 800, h: 20, type: 'wall' },
         ],
         goal: { x: 700, y: 400, r: 25 },
         start: { x: 50, y: 50 }
@@ -369,8 +380,8 @@ class Player {
         // Teleport Mechanic (for pattern or specific mechanic)
         if (this.params.ball_pattern === 'teleport' || this.params.active_mechanics.includes('teleporting_ball')) {
             if (Math.random() > 0.99) {
-                this.x = Math.random() * canvas.width / window.devicePixelRatio;
-                this.y = Math.random() * canvas.height / window.devicePixelRatio;
+                this.x = offsetX + Math.random() * (REF_WIDTH * scale);
+                this.y = offsetY + Math.random() * (REF_HEIGHT * scale);
                 createExplosion(this.x, this.y, '#bc13fe', 10);
             }
         }
@@ -382,25 +393,33 @@ class Player {
         // Collision with walls/platforms
         const level = levels[currentLevel];
         level.platforms.forEach(p => {
-            // Apply scale to platform collision check
+            // Apply scale and offset to platform collision check
             const sp = {
-                x: p.x * scale,
-                y: p.y * scale,
+                x: offsetX + (p.x * scale),
+                y: offsetY + (p.y * scale),
                 w: p.w * scale,
                 h: p.h * scale
             };
             this.checkCollision(sp, p.type);
         });
 
-        // Screen boundaries
-        if (this.x < this.radius) { this.x = this.radius; this.vx *= -BOUNCE; }
-        if (this.x > canvas.width/window.devicePixelRatio - this.radius) { this.x = canvas.width/window.devicePixelRatio - this.radius; this.vx *= -BOUNCE; }
-        if (this.y < this.radius) { this.y = this.radius; this.vy *= -BOUNCE; }
-        if (this.y > canvas.height/window.devicePixelRatio - this.radius) { this.y = canvas.height/window.devicePixelRatio - this.radius; this.vy *= -BOUNCE; }
+        // Screen boundaries (now relative to the centered game area)
+        const minX = offsetX + (this.radius * scale);
+        const maxX = offsetX + (REF_WIDTH * scale) - (this.radius * scale);
+        const minY = offsetY + (this.radius * scale);
+        const maxY = offsetY + (REF_HEIGHT * scale) - (this.radius * scale);
+
+        if (this.x < minX) { this.x = minX; this.vx *= -BOUNCE; }
+        if (this.x > maxX) { this.x = maxX; this.vx *= -BOUNCE; }
+        if (this.y < minY) { this.y = minY; this.vy *= -BOUNCE; }
+        if (this.y > maxY) { this.y = maxY; this.vy *= -BOUNCE; }
 
         // Goal check
-        const dist = Math.hypot(this.x - level.goal.x * scale, this.y - level.goal.y * scale);
-        if (dist < this.radius + level.goal.r * scale) {
+        const gx = offsetX + (level.goal.x * scale);
+        const gy = offsetY + (level.goal.y * scale);
+        const gr = level.goal.r * scale;
+        const dist = Math.hypot(this.x - gx, this.y - gy);
+        if (dist < (this.radius * scale) + gr) {
             winLevel();
         }
     }
@@ -416,14 +435,14 @@ class Player {
 
         let distanceSquared = (distanceX * distanceX) + (distanceY * distanceY);
 
-        if (distanceSquared < (this.radius * this.radius)) {
+        if (distanceSquared < (this.radius * scale * this.radius * scale)) {
             if (type === 'enemy') {
                 loseLevel();
                 return;
             }
             // Collision occurred!
             let distance = Math.sqrt(distanceSquared);
-            let overlap = this.radius - distance;
+            let overlap = (this.radius * scale) - distance;
 
             // Trigger particles on impact
             if (Math.abs(this.vx) > 1 || Math.abs(this.vy) > 1) {
@@ -433,7 +452,7 @@ class Player {
             // Simple resolution: push player back
             if (distance === 0) {
                 // If perfectly centered, push up
-                this.y -= this.radius;
+                this.y -= (this.radius * scale);
                 this.vy = 0;
             } else {
                 this.x += (distanceX / distance) * overlap;
@@ -463,7 +482,7 @@ class Player {
         this.trail.forEach((pos, index) => {
             const trailAlpha = (1 - (index / this.trail.length)) * alpha;
             ctx.beginPath();
-            ctx.arc(pos.x, pos.y, this.radius * trailAlpha, 0, Math.PI * 2);
+            ctx.arc(pos.x, pos.y, this.radius * scale * trailAlpha, 0, Math.PI * 2);
             ctx.fillStyle = theme.main;
             ctx.globalAlpha = trailAlpha * 0.3;
             ctx.fill();
@@ -474,7 +493,7 @@ class Player {
         ctx.save();
         ctx.globalAlpha = alpha;
         ctx.beginPath();
-        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.arc(this.x, this.y, this.radius * scale, 0, Math.PI * 2);
         
         // Neon Glow
         ctx.shadowBlur = 15;
@@ -513,7 +532,7 @@ function initLevel(idx) {
         level.params = getDifficultyParams(idx + 1);
     }
 
-    player = new Player(level.start.x * scale, level.start.y * scale, level.params);
+    player = new Player(offsetX + (level.start.x * scale), offsetY + (level.start.y * scale), level.params);
     
     // Boss Indicator
     const bossInd = document.getElementById('boss-indicator');
@@ -532,8 +551,17 @@ function initLevel(idx) {
     const splashText = document.getElementById('splash-text');
     splashText.innerText = `LEVEL ${idx + 1}`;
     splash.classList.remove('hidden');
+    
+    // Set state to BRIEFING or similar to prevent movement during splash
+    const prevState = gameState;
+    gameState = 'LEVEL_SPLASH';
+    
     setTimeout(() => {
         splash.classList.add('hidden');
+        if (gameState === 'LEVEL_SPLASH') {
+            gameState = 'PLAYING';
+            startTime = Date.now(); // Reset start time after splash
+        }
     }, 1500);
 }
 
@@ -720,6 +748,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('exit-btn').addEventListener('click', () => {
         document.getElementById('pause-screen').classList.add('hidden');
+        gameState = 'MENU';
         showLevelSelectGlobal();
     });
 
@@ -738,6 +767,45 @@ document.addEventListener('DOMContentLoaded', () => {
     function showLevelSelect() {
         showLevelSelectGlobal();
     }
+
+    // HUD Button Listeners moved inside DOMContentLoaded
+    document.getElementById('pause-btn').addEventListener('click', () => {
+        if (gameState === 'PLAYING' || gameState === 'LEVEL_SPLASH') {
+            const prevState = gameState;
+            gameState = 'PAUSED';
+            pauseTime = Date.now();
+            // Store previous state to resume correctly
+            document.getElementById('pause-screen').dataset.prevState = prevState;
+            document.getElementById('pause-screen').classList.remove('hidden');
+        }
+    });
+
+    document.getElementById('resume-btn').addEventListener('click', () => {
+        const prevState = document.getElementById('pause-screen').dataset.prevState || 'PLAYING';
+        gameState = prevState;
+        if (pauseTime > 0) {
+            startTime += (Date.now() - pauseTime); // Adjust timer
+        }
+        document.getElementById('pause-screen').classList.add('hidden');
+    });
+
+    document.getElementById('mute-btn').addEventListener('click', () => {
+        settings.music = !settings.music;
+        updateAudioState();
+    });
+
+    document.getElementById('music-toggle').addEventListener('change', (e) => {
+        settings.music = e.target.checked;
+        updateAudioState();
+    });
+
+    document.getElementById('sfx-toggle').addEventListener('change', (e) => {
+        settings.sfx = e.target.checked;
+    });
+
+    document.getElementById('shake-toggle').addEventListener('change', (e) => {
+        settings.shake = e.target.checked;
+    });
 });
 
 function showLevelSelectGlobal() {
@@ -746,17 +814,22 @@ function showLevelSelectGlobal() {
     grid.innerHTML = '';
     
     // Determine the furthest level reached
-    const savedLevel = parseInt(localStorage.getItem('worldInMotion_save_level') || '0');
+    let maxReached = 0;
+    if (isGuest) {
+        maxReached = parseInt(localStorage.getItem('worldInMotion_maxLevel') || '0');
+    } else if (currentEmail && usersDB[currentEmail]) {
+        maxReached = usersDB[currentEmail].maxLevel || 0;
+    }
 
     for (let i = 0; i < 500; i++) {
         const node = document.createElement('div');
         node.className = 'level-node';
         
-        if (i <= savedLevel) {
+        if (i <= maxReached) {
             // Unlocked
             node.innerText = i + 1;
-            if (i < savedLevel) node.classList.add('completed');
-            if (i === savedLevel) node.classList.add('current');
+            if (i < maxReached) node.classList.add('completed');
+            if (i === currentLevel) node.classList.add('current');
             
             node.addEventListener('click', () => {
                 currentLevel = i;
@@ -767,9 +840,6 @@ function showLevelSelectGlobal() {
             // Locked
             node.innerText = 'L'; // Lock indicator
             node.classList.add('locked');
-            node.style.opacity = '0.3';
-            node.style.cursor = 'not-allowed';
-            node.style.fontSize = '0.6rem';
         }
         
         grid.appendChild(node);
@@ -823,8 +893,7 @@ function showBriefing() {
 
 document.getElementById('final-start-btn').addEventListener('click', () => {
     document.getElementById('briefing-screen').classList.add('hidden');
-    gameState = 'PLAYING';
-    loadProgress();
+    // We don't set gameState to PLAYING here, initLevel will handle it after splash
     initLevel(currentLevel);
 });
 
@@ -873,56 +942,26 @@ function initAudio() {
     updateAudioState();
 }
 
-// HUD Button Listeners
-document.getElementById('pause-btn').addEventListener('click', () => {
-    if (gameState === 'PLAYING') {
-        gameState = 'PAUSED';
-        pauseTime = Date.now();
-        document.getElementById('pause-screen').classList.remove('hidden');
-    }
-});
-
-document.getElementById('resume-btn').addEventListener('click', () => {
-    gameState = 'PLAYING';
-    startTime += (Date.now() - pauseTime); // Adjust timer
-    document.getElementById('pause-screen').classList.add('hidden');
-});
-
-document.getElementById('mute-btn').addEventListener('click', () => {
-    settings.music = !settings.music;
-    updateAudioState();
-});
-
-// Also add listener for the briefing screen toggle
-document.getElementById('music-toggle').addEventListener('change', (e) => {
-    settings.music = e.target.checked;
-    updateAudioState();
-});
+// HUD Button Listeners removed from global scope (moved inside DOMContentLoaded)
 
 function updateAudioState() {
     const muteBtn = document.getElementById('mute-btn');
     const musicToggle = document.getElementById('music-toggle');
+    if (!muteBtn) return;
     
     muteBtn.innerText = settings.music ? 'MUTE' : 'UNMUTE';
     if (musicToggle) musicToggle.checked = settings.music;
     
-    if (musicNode) {
+    if (musicNode && audioCtx) {
         musicNode.gain.setTargetAtTime(settings.music ? 0.08 : 0, audioCtx.currentTime, 0.2);
     }
 }
-
-document.getElementById('sfx-toggle').addEventListener('change', (e) => {
-    settings.sfx = e.target.checked;
-});
-
-document.getElementById('shake-toggle').addEventListener('change', (e) => {
-    settings.shake = e.target.checked;
-});
 
 document.getElementById('next-btn').addEventListener('click', () => {
     document.getElementById('level-complete').classList.add('hidden');
     currentLevel++;
     if (currentLevel >= levels.length) currentLevel = 0; // Loop levels
+    saveProgress(); // Save the new level index
     gameState = 'PLAYING';
     initLevel(currentLevel);
 });
@@ -943,8 +982,8 @@ document.getElementById('retry-btn').addEventListener('click', () => {
 function drawGoal(goal) {
     // Pulsing neon green goal
     const pulse = Math.sin(Date.now() / 200) * 5;
-    const gx = goal.x * scale;
-    const gy = goal.y * scale;
+    const gx = offsetX + (goal.x * scale);
+    const gy = offsetY + (goal.y * scale);
     const gr = goal.r * scale;
 
     ctx.beginPath();
@@ -1045,7 +1084,7 @@ function drawBackground() {
     }
 
     // Main Menu Galaxy Animation
-    if (gameState === 'MENU' || gameState === 'BRIEFING' || gameState === 'LOGIN') {
+    if (gameState === 'MENU' || gameState === 'BRIEFING' || gameState === 'LOGIN' || gameState === 'INITIALIZING') {
         const cx = canvas.width / 2;
         const cy = canvas.height / 2;
         
@@ -1192,8 +1231,8 @@ function gameLoop() {
         ctx.shadowBlur = 10;
 
         // Draw with rotation support
-        const cx = (p.x + p.w/2) * scale;
-        const cy = (p.y + p.h/2) * scale;
+        const cx = offsetX + (p.x + p.w/2) * scale;
+        const cy = offsetY + (p.y + p.h/2) * scale;
         ctx.translate(cx, cy);
         ctx.rotate(p.rotation || 0);
         
