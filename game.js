@@ -389,7 +389,7 @@ class Player {
                 w: p.w * scale,
                 h: p.h * scale
             };
-            this.checkCollision(sp);
+            this.checkCollision(sp, p.type);
         });
 
         // Screen boundaries
@@ -405,7 +405,7 @@ class Player {
         }
     }
 
-    checkCollision(rect) {
+    checkCollision(rect, type) {
         // Find the closest point to the circle within the rectangle
         let closestX = Math.max(rect.x, Math.min(this.x, rect.x + rect.w));
         let closestY = Math.max(rect.y, Math.min(this.y, rect.y + rect.h));
@@ -417,6 +417,10 @@ class Player {
         let distanceSquared = (distanceX * distanceX) + (distanceY * distanceY);
 
         if (distanceSquared < (this.radius * this.radius)) {
+            if (type === 'enemy') {
+                loseLevel();
+                return;
+            }
             // Collision occurred!
             let distance = Math.sqrt(distanceSquared);
             let overlap = this.radius - distance;
@@ -522,6 +526,15 @@ function initLevel(idx) {
     levelNumSpan.innerText = idx + 1;
     if(retriesSpan) retriesSpan.innerText = retries;
     startTime = Date.now();
+
+    // Show Level Splash
+    const splash = document.getElementById('level-splash');
+    const splashText = document.getElementById('splash-text');
+    splashText.innerText = `LEVEL ${idx + 1}`;
+    splash.classList.remove('hidden');
+    setTimeout(() => {
+        splash.classList.add('hidden');
+    }, 1500);
 }
 
 function loseLevel() {
@@ -801,6 +814,12 @@ document.getElementById('resume-btn').addEventListener('click', () => {
 document.getElementById('mute-btn').addEventListener('click', () => {
     settings.music = !settings.music;
     updateAudioState();
+});
+
+document.getElementById('exit-btn').addEventListener('click', () => {
+    document.getElementById('pause-screen').classList.add('hidden');
+    document.getElementById('main-menu').classList.remove('hidden');
+    gameState = 'MENU';
 });
 
 // Also add listener for the briefing screen toggle

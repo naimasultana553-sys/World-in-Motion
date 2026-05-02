@@ -114,11 +114,19 @@
 
         <!-- Pause Overlay -->
         <div id="pause-screen" class="overlay hidden">
-            <div class="menu-card">
-                <h1>SIMULATION PAUSED</h1>
-                <p>Reality stability maintained. Ready to resume.</p>
-                <button id="resume-btn" class="btn">RESUME</button>
+            <div class="menu-card auth-compact">
+                <h1>PAUSED</h1>
+                <p>Reality stability maintained.</p>
+                <div class="auth-actions">
+                    <button id="resume-btn" class="btn">Resume</button>
+                    <button id="exit-btn" class="btn secondary">Exit</button>
+                </div>
             </div>
+        </div>
+
+        <!-- Level Splash Overlay -->
+        <div id="level-splash" class="overlay hidden" style="background: rgba(0,0,0,0.9); z-index: 100;">
+            <h1 id="splash-text" style="font-size: 5rem; letter-spacing: 10px; animation: titlePulse 1s infinite;">LEVEL 1</h1>
         </div>
 
         <!-- Level Complete Overlay -->
