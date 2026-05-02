@@ -713,41 +713,52 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('main-menu').classList.remove('hidden');
     });
 
-    function showLevelSelect() {
-        const selectScreen = document.getElementById('level-select');
-        const grid = document.getElementById('level-select-chart');
-        grid.innerHTML = '';
-        
-        const savedLevel = parseInt(localStorage.getItem('worldInMotion_save_level') || '0');
+    document.getElementById('exit-btn').addEventListener('click', () => {
+        document.getElementById('pause-screen').classList.add('hidden');
+        showLevelSelectGlobal();
+    });
 
-        // Show all 500 levels
-        for (let i = 0; i < 500; i++) {
-            const node = document.createElement('div');
-            node.className = 'level-node';
-            node.innerText = i + 1;
-            
-            if (i < savedLevel) {
-                node.classList.add('completed');
-            } else if (i === savedLevel) {
-                node.classList.add('current');
-            } else {
-                node.classList.add('locked');
-                node.style.opacity = '0.3';
-                node.style.cursor = 'not-allowed';
-            }
-            
-            node.addEventListener('click', () => {
-                if (i <= savedLevel) {
-                    currentLevel = i;
-                    selectScreen.classList.add('hidden');
-                    showBriefing();
-                }
-            });
-            grid.appendChild(node);
-        }
-        selectScreen.classList.remove('hidden');
+    function showLevelSelect() {
+        showLevelSelectGlobal();
     }
 });
+
+function showLevelSelectGlobal() {
+    const selectScreen = document.getElementById('level-select');
+    const grid = document.getElementById('level-select-chart');
+    grid.innerHTML = '';
+    
+    // Determine the furthest level reached
+    const savedLevel = parseInt(localStorage.getItem('worldInMotion_save_level') || '0');
+
+    for (let i = 0; i < 500; i++) {
+        const node = document.createElement('div');
+        node.className = 'level-node';
+        
+        if (i <= savedLevel) {
+            // Unlocked
+            node.innerText = i + 1;
+            if (i < savedLevel) node.classList.add('completed');
+            if (i === savedLevel) node.classList.add('current');
+            
+            node.addEventListener('click', () => {
+                currentLevel = i;
+                selectScreen.classList.add('hidden');
+                showBriefing();
+            });
+        } else {
+            // Locked
+            node.innerText = 'L'; // Lock indicator
+            node.classList.add('locked');
+            node.style.opacity = '0.3';
+            node.style.cursor = 'not-allowed';
+            node.style.fontSize = '0.6rem';
+        }
+        
+        grid.appendChild(node);
+    }
+    selectScreen.classList.remove('hidden');
+}
 
 function startInitialization() {
     gameState = 'INITIALIZING';
@@ -781,39 +792,10 @@ document.getElementById('enter-btn').addEventListener('click', () => {
 });
 
 function showLevelSelectGlobal() {
-    // Re-use the logic from the DOMContentLoaded block
-    // We'll expose a global version of this function
+    // This is now redundant as we moved it up, but let's keep the reference clear
     const selectScreen = document.getElementById('level-select');
     const grid = document.getElementById('level-select-chart');
-    grid.innerHTML = '';
-    
-    const savedLevel = parseInt(localStorage.getItem('worldInMotion_save_level') || '0');
-
-    for (let i = 0; i < 500; i++) {
-        const node = document.createElement('div');
-        node.className = 'level-node';
-        node.innerText = i + 1;
-        
-        if (i < savedLevel) {
-            node.classList.add('completed');
-        } else if (i === savedLevel) {
-            node.classList.add('current');
-        } else {
-            node.classList.add('locked');
-            node.style.opacity = '0.3';
-            node.style.cursor = 'not-allowed';
-        }
-        
-        node.addEventListener('click', () => {
-            if (i <= savedLevel) {
-                currentLevel = i;
-                selectScreen.classList.add('hidden');
-                showBriefing();
-            }
-        });
-        grid.appendChild(node);
-    }
-    selectScreen.classList.remove('hidden');
+    // Logic already handled in the global function above
 }
 
 function showBriefing() {
@@ -892,12 +874,6 @@ document.getElementById('resume-btn').addEventListener('click', () => {
 document.getElementById('mute-btn').addEventListener('click', () => {
     settings.music = !settings.music;
     updateAudioState();
-});
-
-document.getElementById('exit-btn').addEventListener('click', () => {
-    document.getElementById('pause-screen').classList.add('hidden');
-    document.getElementById('main-menu').classList.remove('hidden');
-    gameState = 'MENU';
 });
 
 // Also add listener for the briefing screen toggle
