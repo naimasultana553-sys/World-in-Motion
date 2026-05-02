@@ -305,9 +305,15 @@ input:checked + .slider:before {
     gap: 10px;
 }
 
+.field-wrap {
+    position: relative;
+    width: 100%;
+}
+
 #auth-email, #auth-pass {
     width: 100%;
-    padding: 0.7rem;
+    padding: 0.8rem;
+    padding-right: 60px; /* Space for the toggle button */
     font-family: 'Orbitron', sans-serif;
     font-size: 0.85rem;
     color: var(--text-color);
@@ -323,6 +329,28 @@ input:checked + .slider:before {
 #auth-email:focus, #auth-pass:focus {
     border-color: var(--player-color);
     box-shadow: 0 0 15px rgba(0, 242, 255, 0.3);
+}
+
+.field-toggle {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: var(--player-color);
+    cursor: pointer;
+    font-size: 0.65rem;
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 700;
+    z-index: 10; /* Ensure it stays above the input */
+    letter-spacing: 1px;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+}
+
+.field-toggle:hover {
+    opacity: 1;
 }
 
 .auth-compact {

@@ -34,10 +34,12 @@
             <div class="menu-card auth-compact">
                 <h1>World In Motion</h1>
                 <div class="input-group">
-                    <input type="email" id="auth-email" placeholder="Email" autocomplete="off">
-                    <div style="position: relative; width: 100%;">
+                    <div class="field-wrap">
+                        <input type="email" id="auth-email" placeholder="Email" autocomplete="off">
+                    </div>
+                    <div class="field-wrap">
                         <input type="password" id="auth-pass" placeholder="Password" autocomplete="off">
-                        <button id="toggle-pass" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--player-color); cursor: pointer; font-size: 0.7rem; font-family: 'Orbitron';">SHOW</button>
+                        <button id="toggle-pass" type="button" class="field-toggle">SHOW</button>
                     </div>
                     <span id="auth-error" class="error-text"></span>
                 </div>
