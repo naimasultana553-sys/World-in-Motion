@@ -297,6 +297,91 @@ input:checked + .slider:before {
     transform: translateY(-1px);
 }
 
+/* Form Styles */
+.input-group {
+    margin-bottom: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+#auth-email, #auth-pass {
+    width: 100%;
+    padding: 1rem;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1.1rem;
+    color: var(--text-color);
+    background: rgba(0, 0, 0, 0.4);
+    border: 2px solid var(--glass-border);
+    border-radius: 8px;
+    outline: none;
+    text-align: center;
+    transition: all 0.3s;
+    letter-spacing: 2px;
+}
+
+#auth-email:focus, #auth-pass:focus {
+    border-color: var(--player-color);
+    box-shadow: 0 0 15px rgba(0, 242, 255, 0.3);
+}
+
+.auth-compact {
+    max-width: 400px;
+}
+
+.auth-actions {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    margin-top: 10px;
+}
+
+.auth-actions .btn {
+    flex: 1;
+    padding: 0.8rem;
+    font-size: 1rem;
+}
+
+.auth-divider {
+    margin: 1.5rem 0;
+    height: 1px;
+    background: var(--glass-border);
+    position: relative;
+}
+
+.auth-divider::after {
+    content: 'OR';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: var(--bg-color);
+    padding: 0 10px;
+    font-size: 0.7rem;
+    font-family: 'Orbitron', sans-serif;
+    color: rgba(255, 255, 255, 0.3);
+}
+
+.btn.secondary {
+    width: 100%;
+    background: transparent;
+    border: 1px solid var(--glass-border);
+    font-size: 0.9rem;
+    padding: 0.8rem 1.5rem;
+}
+
+.btn.secondary:hover {
+    background: rgba(255, 255, 255, 0.05);
+    box-shadow: none;
+}
+
+.error-text {
+    color: #ff3333;
+    font-size: 0.8rem;
+    min-height: 1rem;
+    margin-top: 5px;
+}
+
 /* HUD */
 #hud {
     position: absolute;

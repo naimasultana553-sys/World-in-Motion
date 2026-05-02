@@ -4,6 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>World in Motion | Reality Bending Puzzle</title>
+    
+    <!-- PWA Meta Tags & Icons -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#00f2ff">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    
     <link rel="stylesheet" href="style.css">
     <meta name="description" content="A physics-based puzzle game where you control gravity to guide an orb through a futuristic world.">
 </head>
@@ -14,6 +21,7 @@
             <div class="stat-box">Level: <span id="level-num">1</span></div>
             <div class="stat-box">Time: <span id="timer">00:00</span></div>
             <div class="stat-box">Retries: <span id="retries">3</span></div>
+            <div id="boss-indicator" class="stat-box hidden" style="color: #ff3333; border-color: #ff3333; font-weight: 900; animation: titlePulse 1s infinite;">BOSS LEVEL</div>
             <button id="pause-btn" class="stat-box" style="pointer-events: auto; cursor: pointer; border: 1px solid var(--player-color);">PAUSE</button>
             <button id="mute-btn" class="stat-box" style="pointer-events: auto; cursor: pointer; border: 1px solid var(--accent-color);">MUTE</button>
         </div>
@@ -21,12 +29,30 @@
         <!-- Canvas -->
         <canvas id="gameCanvas"></canvas>
 
+        <!-- Auth Overlay -->
+        <div id="auth-screen" class="overlay">
+            <div class="menu-card auth-compact">
+                <h1>World In Motion</h1>
+                <div class="input-group">
+                    <input type="email" id="auth-email" placeholder="Email" autocomplete="off">
+                    <input type="password" id="auth-pass" placeholder="Password" autocomplete="off">
+                    <span id="auth-error" class="error-text"></span>
+                </div>
+                <div class="auth-actions">
+                    <button id="do-login-btn" class="btn">Login</button>
+                    <button id="do-signup-btn" class="btn">Signup</button>
+                </div>
+                <div class="auth-divider"></div>
+                <button id="guest-btn" class="btn secondary">Play as Guest</button>
+            </div>
+        </div>
+
         <!-- Main Menu Overlay -->
-        <div id="main-menu" class="overlay">
+        <div id="main-menu" class="overlay hidden">
             <div class="menu-card">
                 <h1>World In Motion</h1>
-                <p>Reality is fluid. Space is yours to command.</p>
-                <button id="start-btn" class="btn">Initialize System</button>
+                <p>Welcome back to the simulation.</p>
+                <button id="start-btn" class="btn">Start Game</button>
             </div>
         </div>
 
@@ -45,7 +71,6 @@
         <!-- System Briefing Screen -->
         <div id="briefing-screen" class="overlay hidden">
             <div class="menu-card">
-                <!-- Left Side: Rules -->
                 <div>
                     <h2 style="font-family: 'Orbitron'; color: var(--player-color); margin-bottom: 20px; letter-spacing: 2px;">SYSTEM BRIEFING</h2>
                     <div style="font-size: 0.9rem; opacity: 0.9;">
@@ -59,10 +84,8 @@
                     </div>
                 </div>
 
-                <!-- Right Side: Settings -->
                 <div style="flex: 1; border-left: 1px solid var(--glass-border); padding-left: 40px;">
                     <h2 style="font-family: 'Orbitron'; color: var(--accent-color); margin-bottom: 20px; letter-spacing: 2px;">CONTROL PANEL</h2>
-                    
                     <div class="setting-item" style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
                         <span>AUDIO STREAM</span>
                         <label class="switch">
@@ -70,7 +93,6 @@
                             <span class="slider"></span>
                         </label>
                     </div>
-
                     <div class="setting-item" style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
                         <span>SFX FEEDBACK</span>
                         <label class="switch">
@@ -78,7 +100,6 @@
                             <span class="slider"></span>
                         </label>
                     </div>
-
                     <div class="setting-item" style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
                         <span>SCREEN SHAKE</span>
                         <label class="switch">
@@ -86,7 +107,6 @@
                             <span class="slider"></span>
                         </label>
                     </div>
-                    
                     <button id="final-start-btn" class="btn" style="width: 100%; margin-top: 20px;">START SIMULATION</button>
                 </div>
             </div>
@@ -106,11 +126,7 @@
             <div class="menu-card">
                 <h1>Level Sync Complete</h1>
                 <p>Gravity stability established. Sector progression initiated.</p>
-                
-                <div id="level-chart">
-                    <!-- Dynamic level nodes will be injected here -->
-                </div>
-
+                <div id="level-chart"></div>
                 <button id="next-btn" class="btn">Initiate Next Sync</button>
             </div>
         </div>
@@ -131,5 +147,14 @@
     </div>
 
     <script src="game.js"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then((reg) => console.log('ServiceWorker registered successfully!', reg.scope))
+                    .catch((err) => console.log('ServiceWorker registration failed:', err));
+            });
+        }
+    </script>
 </body>
 </html>

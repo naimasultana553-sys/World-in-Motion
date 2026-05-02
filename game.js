@@ -11,22 +11,42 @@ const retriesSpan = document.getElementById('retries');
 const gravityArrow = document.getElementById('gravity-arrow');
 
 // Game State
-let gameState = 'MENU'; // MENU, INITIALIZING, BRIEFING, PLAYING, WIN, GAMEOVER, PAUSED
+let gameState = 'LOGIN'; // LOGIN, MENU, INITIALIZING, BRIEFING, PLAYING, WIN, GAMEOVER, PAUSED
+let currentEmail = null;
+let isGuest = false;
 let currentLevel = 0;
 let startTime = 0;
 let pauseTime = 0;
 let retries = 3;
 
+// Mock Database
+let usersDB = {};
+try {
+    const data = localStorage.getItem('worldInMotion_usersDB');
+    usersDB = data ? JSON.parse(data) : {};
+} catch(e) { usersDB = {}; }
+
 function saveProgress() {
-    localStorage.setItem('worldInMotion_level', currentLevel);
-    localStorage.setItem('worldInMotion_retries', retries);
+    if (isGuest) {
+        localStorage.setItem('worldInMotion_guest_level', currentLevel);
+        localStorage.setItem('worldInMotion_guest_retries', retries);
+    } else if (currentEmail && usersDB[currentEmail]) {
+        usersDB[currentEmail].level = currentLevel;
+        usersDB[currentEmail].retries = retries;
+        localStorage.setItem('worldInMotion_usersDB', JSON.stringify(usersDB));
+    }
 }
 
 function loadProgress() {
-    const savedLevel = localStorage.getItem('worldInMotion_level');
-    const savedRetries = localStorage.getItem('worldInMotion_retries');
-    if (savedLevel !== null) currentLevel = parseInt(savedLevel);
-    if (savedRetries !== null) retries = parseInt(savedRetries);
+    if (isGuest) {
+        const savedLevel = localStorage.getItem('worldInMotion_guest_level');
+        const savedRetries = localStorage.getItem('worldInMotion_guest_retries');
+        currentLevel = savedLevel !== null ? parseInt(savedLevel) : 0;
+        retries = savedRetries !== null ? parseInt(savedRetries) : 3;
+    } else if (currentEmail && usersDB[currentEmail]) {
+        currentLevel = usersDB[currentEmail].level || 0;
+        retries = usersDB[currentEmail].retries || 3;
+    }
 }
 let gravity = { x: 0, y: 0.5 };
 let mousePos = { x: 0, y: 0 };
@@ -130,50 +150,140 @@ const levels = [
         ],
         goal: { x: 700, y: 400, r: 25 },
         start: { x: 50, y: 50 }
-    },
-    {
-        // Maze-like precision level
-        platforms: [
-            { x: 0, y: 0, w: 800, h: 20 },
-            { x: 0, y: 580, w: 800, h: 20 },
-            { x: 0, y: 0, w: 20, h: 600 },
-            { x: 780, y: 0, w: 20, h: 600 },
-            { x: 200, y: 0, w: 20, h: 450 },
-            { x: 400, y: 150, w: 20, h: 450 },
-            { x: 600, y: 0, w: 20, h: 450 },
-        ],
-        goal: { x: 700, y: 530, r: 25 },
-        start: { x: 100, y: 500 }
     }
 ];
 
-// Pre-fill up to 500 levels so chart logic works
-for (let i = 3; i < 500; i++) {
+// Pre-fill up to 500 levels
+for (let i = 2; i < 500; i++) {
     levels.push(null);
 }
 
-function generateRandomLevel(idx) {
-    const difficulty = Math.min(idx / 500, 1);
-    const numObstacles = Math.floor(2 + difficulty * 15);
-    const platforms = [
-        { x: 0, y: 0, w: 800, h: 20 },
-        { x: 0, y: 780, w: 800, h: 20 },
-        { x: 0, y: 0, w: 20, h: 800 },
-        { x: 780, y: 0, w: 20, h: 800 }
-    ];
-
-    for (let j = 0; j < numObstacles; j++) {
-        const isVertical = Math.random() > 0.5;
-        const w = isVertical ? (10 + Math.random() * 20) : (50 + Math.random() * 300);
-        const h = isVertical ? (50 + Math.random() * 300) : (10 + Math.random() * 20);
-        const x = 50 + Math.random() * (700 - w);
-        const y = 50 + Math.random() * (700 - h);
-        platforms.push({ x, y, w, h });
+function getDifficultyParams(level) {
+    let L = level;
+    let difficulty = L / 500;
+    let variation = (L % 5) * 0.05; // 0% to 20% variation
+    
+    // Base parameters
+    let ball_speed = 2.0 + (difficulty * 5.0) + variation;
+    let player_speed = 5.0 - (difficulty * 1.5); // Responsiveness decreases
+    
+    // Boss Levels every 25
+    let isBoss = L % 25 === 0 && L > 0;
+    if (isBoss) {
+        ball_speed *= 1.5;
     }
-
-    const goalR = Math.max(10, 25 - difficulty * 15);
+    
+    // Movement Pattern (cycles every few levels)
+    const patterns = ['straight', 'zigzag', 'curve', 'random'];
+    let ball_pattern = patterns[Math.floor(L / 3) % patterns.length];
+    
+    // Obstacle count increases every 20 levels
+    let obstacle_count = 3 + Math.floor(L / 20) + (isBoss ? 5 : 0);
+    
+    // Gap size decreases
+    let gap_size = Math.max(40, 180 - (difficulty * 140));
+    
+    // Obstacle Type Rotation
+    // 0: Moving walls, 1: Rotating bars, 2: Narrow gates, 3: Spikes, 4: Disappearing platforms, 5: Moving enemy blocks
+    let obstacle_type_idx = L % 6;
+    
+    // Special Mechanics Unlocks
+    let special_mechanics = [];
+    if (L >= 100) special_mechanics.push('reverse_controls');
+    if (L >= 150) special_mechanics.push('invisible_ball');
+    if (L >= 200) special_mechanics.push('multiple_balls');
+    if (L >= 300) special_mechanics.push('fake_balls');
+    if (L >= 400) special_mechanics.push('teleporting_ball');
+    
+    // Combination Rule: 0-2 mechanics
+    let active_mechanics = [];
+    if (L >= 400) {
+        active_mechanics = ['multiple_balls', 'fake_balls', 'teleporting_ball'];
+    } else if (isBoss) {
+        active_mechanics = special_mechanics.sort(() => 0.5 - Math.random()).slice(0, 2);
+    } else if (special_mechanics.length > 0) {
+        let num = Math.random() > 0.7 ? 1 : 0;
+        active_mechanics = special_mechanics.sort(() => 0.5 - Math.random()).slice(0, num);
+    }
     
     return {
+        ball_speed,
+        player_speed,
+        ball_pattern,
+        obstacle_count,
+        obstacle_type_idx,
+        gap_size,
+        active_mechanics,
+        isBoss,
+        difficulty
+    };
+}
+
+function getLevelTheme(level) {
+    const themes = [
+        { main: '#00f2ff', accent: '#bc13fe', bg: '#05050a' }, // Neon Cyber
+        { main: '#ff0055', accent: '#ffaa00', bg: '#100005' }, // Magma
+        { main: '#39ff14', accent: '#00ffcc', bg: '#000a05' }, // Matrix/Bio
+        { main: '#ffffff', accent: '#555555', bg: '#000000' }, // Monochrome
+        { main: '#ffcc00', accent: '#ff00ff', bg: '#050010' }, // Synthwave
+        { main: '#00aaff', accent: '#ffffff', bg: '#000510' }  // Deep Sea
+    ];
+    return themes[Math.floor((level-1) / 20) % themes.length];
+}
+
+function generateRandomLevel(idx) {
+    const L = idx + 1;
+    const params = getDifficultyParams(L);
+    const theme = getLevelTheme(L);
+    
+    const platforms = [
+        { x: 0, y: 0, w: 800, h: 20, type: 'wall' },
+        { x: 0, y: 780, w: 800, h: 20, type: 'wall' },
+        { x: 0, y: 0, w: 20, h: 800, type: 'wall' },
+        { x: 780, y: 0, w: 20, h: 800, type: 'wall' }
+    ];
+
+    const types = ['moving', 'rotating', 'gate', 'spike', 'disappearing', 'enemy'];
+    const currentType = types[params.obstacle_type_idx];
+
+    for (let j = 0; j < params.obstacle_count; j++) {
+        const isVertical = Math.random() > 0.5;
+        let w, h, x, y, vx = 0, vy = 0, rotation = 0, rotationSpeed = 0, state = 'visible';
+        
+        if (currentType === 'gate') {
+            w = isVertical ? 20 : 150;
+            h = isVertical ? 150 : 20;
+            x = 100 + Math.random() * 600;
+            y = 100 + Math.random() * 600;
+        } else {
+            w = isVertical ? (20 + Math.random() * 20) : (60 + Math.random() * 200);
+            h = isVertical ? (60 + Math.random() * 200) : (20 + Math.random() * 20);
+            x = 50 + Math.random() * (700 - w);
+            y = 50 + Math.random() * (700 - h);
+        }
+
+        if (currentType === 'moving' || currentType === 'enemy') {
+            const s = (0.5 + Math.random()) * (params.difficulty * 5 + 1);
+            if (isVertical) vy = Math.random() > 0.5 ? s : -s;
+            else vx = Math.random() > 0.5 ? s : -s;
+        } else if (currentType === 'rotating') {
+            rotationSpeed = (Math.random() - 0.5) * 0.1;
+        }
+
+        platforms.push({ 
+            x, y, w, h, vx, vy, 
+            type: currentType, 
+            rotation, rotationSpeed, 
+            baseW: w, baseH: h,
+            state, timer: Math.random() * 2
+        });
+    }
+
+    const goalR = Math.max(10, 25 - (params.difficulty * 15));
+    
+    return {
+        params: params,
+        theme: theme,
         platforms: platforms,
         goal: { 
             x: 100 + Math.random() * 600, 
@@ -187,20 +297,66 @@ function generateRandomLevel(idx) {
     };
 }
 
+// Utility for laser collision
+function distSq(v, w) { return (v.x - w.x) ** 2 + (v.y - w.y) ** 2 }
+function distToSegment(p, v, w) {
+    var l2 = distSq(v, w);
+    if (l2 == 0) return Math.sqrt(distSq(p, v));
+    var t = ((p.x - v.x) * (w.x - v.x) + (p.y - v.y) * (w.y - v.y)) / l2;
+    t = Math.max(0, Math.min(1, t));
+    return Math.sqrt(distSq(p, { x: v.x + t * (w.x - v.x), y: v.y + t * (w.y - v.y) }));
+}
+
 class Player {
-    constructor(x, y) {
+    constructor(x, y, params) {
         this.x = x;
         this.y = y;
         this.vx = 0;
         this.vy = 0;
         this.radius = PLAYER_RADIUS;
         this.trail = [];
+        this.params = params || { ball_speed: 1, ball_pattern: 'straight', active_mechanics: [] };
+        this.creationTime = Date.now();
     }
 
     update() {
+        let L = currentLevel + 1;
+        const time = (Date.now() - this.creationTime) / 1000;
+        
+        // Difficulty Scaling from Params
+        let speedMult = this.params.ball_speed / 2.0; // Normalized against base speed 2.0
+        let ctrlMult = this.params.player_speed / 5.0; // Normalized against base player speed 5.0
+        
+        // Reverse Controls Mechanic
+        let finalGravity = { x: gravity.x, y: gravity.y };
+        if (this.params.active_mechanics.includes('reverse_controls')) {
+            finalGravity.x *= -1;
+            finalGravity.y *= -1;
+        }
+
         // Apply scaled gravity
-        this.vx += gravity.x * scale;
-        this.vy += gravity.y * scale;
+        this.vx += finalGravity.x * scale * speedMult * ctrlMult;
+        this.vy += finalGravity.y * scale * speedMult * ctrlMult;
+
+        // Movement Patterns
+        if (this.params.ball_pattern === 'zigzag') {
+            this.vx += Math.sin(time * 5) * 0.5;
+        } else if (this.params.ball_pattern === 'curve') {
+            this.vx += Math.cos(time * 2) * 0.8;
+            this.vy += Math.sin(time * 2) * 0.8;
+        } else if (this.params.ball_pattern === 'random') {
+            if (Math.random() > 0.95) {
+                this.vx += (Math.random() - 0.5) * 5;
+                this.vy += (Math.random() - 0.5) * 5;
+            }
+        }
+
+        // Gravity Shift Mechanic (frequent heavy/light feel)
+        if (this.params.active_mechanics.includes('gravity_shift')) {
+            let shift = 1 + Math.sin(time * 3) * 0.5;
+            this.vx *= shift;
+            this.vy *= shift;
+        }
 
         // Apply friction
         this.vx *= FRICTION;
@@ -209,6 +365,15 @@ class Player {
         // Move
         this.x += this.vx;
         this.y += this.vy;
+
+        // Teleport Mechanic (for pattern or specific mechanic)
+        if (this.params.ball_pattern === 'teleport' || this.params.active_mechanics.includes('teleporting_ball')) {
+            if (Math.random() > 0.99) {
+                this.x = Math.random() * canvas.width / window.devicePixelRatio;
+                this.y = Math.random() * canvas.height / window.devicePixelRatio;
+                createExplosion(this.x, this.y, '#bc13fe', 10);
+            }
+        }
 
         // Trail
         this.trail.unshift({ x: this.x, y: this.y });
@@ -281,36 +446,79 @@ class Player {
     }
 
     draw() {
+        const level = levels[currentLevel];
+        const theme = (level && level.theme) ? level.theme : { main: '#00f2ff', accent: '#bc13fe', bg: '#05050a' };
+
+        // Invisible Ball Mechanic
+        let alpha = 1;
+        if (this.params.active_mechanics.includes('invisible_ball')) {
+            alpha = (Math.sin(Date.now() / 500) > 0) ? 1 : 0.1;
+        }
+
         // Draw trail
         this.trail.forEach((pos, index) => {
-            const alpha = 1 - (index / this.trail.length);
+            const trailAlpha = (1 - (index / this.trail.length)) * alpha;
             ctx.beginPath();
-            ctx.arc(pos.x, pos.y, this.radius * alpha, 0, Math.PI * 2);
-            ctx.fillStyle = `rgba(0, 242, 255, ${alpha * 0.3})`;
+            ctx.arc(pos.x, pos.y, this.radius * trailAlpha, 0, Math.PI * 2);
+            ctx.fillStyle = theme.main;
+            ctx.globalAlpha = trailAlpha * 0.3;
             ctx.fill();
+            ctx.globalAlpha = 1;
         });
 
         // Draw player
+        ctx.save();
+        ctx.globalAlpha = alpha;
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
         
         // Neon Glow
         ctx.shadowBlur = 15;
-        ctx.shadowColor = '#00f2ff';
-        ctx.fillStyle = '#00f2ff';
+        ctx.shadowColor = theme.main;
+        ctx.fillStyle = theme.main;
         ctx.fill();
+        ctx.restore();
         ctx.shadowBlur = 0;
+
+        // Draw Fake Balls (Decoys)
+        if (this.params.active_mechanics.includes('fake_balls')) {
+            const time = Date.now() / 1000;
+            for (let i = 0; i < 3; i++) {
+                const fx = this.x + Math.cos(time + i * 2) * 100;
+                const fy = this.y + Math.sin(time + i * 2) * 100;
+                ctx.beginPath();
+                ctx.arc(fx, fy, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(0, 242, 255, 0.2)';
+                ctx.strokeStyle = 'rgba(0, 242, 255, 0.5)';
+                ctx.stroke();
+            }
+        }
     }
 }
 
 let player;
 
 function initLevel(idx) {
-    if (idx > 2) {
+    if (idx > 1 && !levels[idx]) {
         levels[idx] = generateRandomLevel(idx);
     }
     const level = levels[idx];
-    player = new Player(level.start.x * scale, level.start.y * scale);
+    
+    // Default params for hardcoded levels if missing
+    if (!level.params) {
+        level.params = getDifficultyParams(idx + 1);
+    }
+
+    player = new Player(level.start.x * scale, level.start.y * scale, level.params);
+    
+    // Boss Indicator
+    const bossInd = document.getElementById('boss-indicator');
+    if (level.params.isBoss) {
+        bossInd.classList.remove('hidden');
+    } else {
+        bossInd.classList.add('hidden');
+    }
+
     levelNumSpan.innerText = idx + 1;
     if(retriesSpan) retriesSpan.innerText = retries;
     startTime = Date.now();
@@ -431,10 +639,59 @@ window.addEventListener('touchstart', (e) => {
     handlePointer(e.touches[0].clientX, e.touches[0].clientY);
 }, { passive: false });
 
-// UI Buttons
-document.getElementById('start-btn').addEventListener('click', () => {
-    document.getElementById('main-menu').classList.add('hidden');
-    startInitialization();
+// UI Initialization
+document.addEventListener('DOMContentLoaded', () => {
+    const authScreen = document.getElementById('auth-screen');
+    const authEmail = document.getElementById('auth-email');
+    const authPass = document.getElementById('auth-pass');
+    const authError = document.getElementById('auth-error');
+
+    const enterMainMenu = (msg) => {
+        authScreen.classList.add('hidden');
+        document.getElementById('main-menu').classList.remove('hidden');
+        document.querySelector('#main-menu p').innerText = msg;
+        gameState = 'MENU';
+    };
+
+    document.getElementById('do-signup-btn').addEventListener('click', () => {
+        const email = authEmail.value.trim();
+        const pass = authPass.value.trim();
+        if (!email || !pass) { authError.innerText = "Email and Password required"; return; }
+        if (usersDB[email]) { authError.innerText = "Email already exists"; return; }
+        
+        usersDB[email] = { password: pass, level: 0, retries: 3 };
+        localStorage.setItem('worldInMotion_usersDB', JSON.stringify(usersDB));
+        currentEmail = email;
+        isGuest = false;
+        enterMainMenu("Account created successfully!");
+    });
+
+    document.getElementById('do-login-btn').addEventListener('click', () => {
+        const email = authEmail.value.trim();
+        const pass = authPass.value.trim();
+        if (!email || !pass) { authError.innerText = "Email and Password required"; return; }
+        
+        const userData = usersDB[email];
+        if (!userData) { authError.innerText = "User not found"; return; }
+        if (userData.password !== pass) { authError.innerText = "Incorrect email or password"; return; }
+        
+        currentEmail = email;
+        isGuest = false;
+        loadProgress();
+        enterMainMenu(`Welcome back, ${email}`);
+    });
+
+    document.getElementById('guest-btn').addEventListener('click', () => {
+        isGuest = true;
+        currentEmail = null;
+        loadProgress();
+        enterMainMenu("Guest Mode: Progress saved locally.");
+    });
+
+    document.getElementById('start-btn').addEventListener('click', () => {
+        document.getElementById('main-menu').classList.add('hidden');
+        startInitialization();
+    });
 });
 
 function startInitialization() {
@@ -448,22 +705,19 @@ function startInitialization() {
     const subtext = document.getElementById('init-subtext');
     const enterBtn = document.getElementById('enter-btn');
     
+    // Faster initialization
     const interval = setInterval(() => {
-        progress += Math.random() * 5;
+        progress += Math.random() * 15; // Increased speed
         if (progress >= 100) {
             progress = 100;
             clearInterval(interval);
             status.innerText = 'System Stabilized';
-            status.classList.add('glitch');
-            subtext.innerText = 'All Fields Synced.';
+            subtext.innerText = 'Field Ready.';
             enterBtn.classList.remove('hidden');
             createExplosion(canvas.width/2, canvas.height/2, '#00f2ff', 30);
         }
         bar.style.width = `${progress}%`;
-        
-        if (progress > 30 && progress < 60) status.innerText = 'Stabilizing Gravity Fields...';
-        if (progress > 60 && progress < 90) status.innerText = 'Syncing Reality Grid...';
-    }, 150);
+    }, 50);
 }
 
 document.getElementById('enter-btn').addEventListener('click', () => {
@@ -620,6 +874,13 @@ function drawGoal(goal) {
 }
 
 function drawBackground() {
+    const level = levels[currentLevel];
+    const theme = (level && level.theme) ? level.theme : { main: '#00f2ff', accent: '#bc13fe', bg: '#05050a' };
+    
+    // Background color based on theme
+    ctx.fillStyle = theme.bg;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
     // Twinkling & Moving Starfield
     stars.forEach(star => {
         // Move stars slightly
@@ -694,7 +955,7 @@ function drawBackground() {
     }
 
     // Main Menu Galaxy Animation
-    if (gameState === 'MENU' || gameState === 'BRIEFING') {
+    if (gameState === 'MENU' || gameState === 'BRIEFING' || gameState === 'LOGIN') {
         const cx = canvas.width / 2;
         const cy = canvas.height / 2;
         
@@ -795,11 +1056,77 @@ function gameLoop() {
 
     // Draw platforms
     const level = levels[currentLevel];
-    ctx.fillStyle = '#1a1a2e';
+    const theme = level.theme || { main: '#00f2ff', accent: '#bc13fe', bg: '#05050a' };
+    
     ctx.shadowBlur = 10;
-    ctx.shadowColor = 'rgba(188, 19, 254, 0.5)';
+    const time = Date.now() / 1000;
+
     level.platforms.forEach(p => {
-        ctx.fillRect(p.x * scale, p.y * scale, p.w * scale, p.h * scale);
+        ctx.save();
+        
+        // Behavior Updates
+        if (p.type === 'moving' || p.type === 'enemy') {
+            p.x += p.vx;
+            p.y += p.vy;
+            if (p.x < 20 || p.x + p.w > 780) p.vx *= -1;
+            if (p.y < 20 || p.y + p.h > 780) p.vy *= -1;
+        } else if (p.type === 'rotating') {
+            p.rotation += p.rotationSpeed;
+        } else if (p.type === 'disappearing') {
+            p.timer += 0.016;
+            if (p.timer > 2) {
+                p.state = p.state === 'visible' ? 'hidden' : 'visible';
+                p.timer = 0;
+            }
+            if (p.state === 'hidden') {
+                ctx.restore();
+                return;
+            }
+        }
+
+        // Color/Style
+        if (p.type === 'wall') {
+            ctx.fillStyle = '#1a1a2e';
+            ctx.shadowColor = 'rgba(188, 19, 254, 0.5)';
+        } else if (p.type === 'spike') {
+            ctx.fillStyle = '#ff3333';
+            ctx.shadowColor = '#ff3333';
+        } else if (p.type === 'enemy') {
+            ctx.fillStyle = '#ffaa00';
+            ctx.shadowColor = '#ffaa00';
+        } else {
+            ctx.fillStyle = theme.main;
+            ctx.shadowColor = theme.accent;
+        }
+
+        ctx.shadowBlur = 10;
+
+        // Draw with rotation support
+        const cx = (p.x + p.w/2) * scale;
+        const cy = (p.y + p.h/2) * scale;
+        ctx.translate(cx, cy);
+        ctx.rotate(p.rotation || 0);
+        
+        if (p.type === 'spike') {
+            // Draw triangles
+            ctx.beginPath();
+            ctx.moveTo(-p.w/2 * scale, p.h/2 * scale);
+            ctx.lineTo(0, -p.h/2 * scale);
+            ctx.lineTo(p.w/2 * scale, p.h/2 * scale);
+            ctx.fill();
+            
+            // Spike Collision
+            if (gameState === 'PLAYING') {
+                const playerX = player.x;
+                const playerY = player.y;
+                const dist = Math.hypot(playerX - cx, playerY - cy);
+                if (dist < player.radius + 15 * scale) loseLevel();
+            }
+        } else {
+            ctx.fillRect(-p.w/2 * scale, -p.h/2 * scale, p.w * scale, p.h * scale);
+        }
+        
+        ctx.restore();
     });
     ctx.shadowBlur = 0;
 
