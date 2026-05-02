@@ -7,6 +7,7 @@ const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const levelNumSpan = document.getElementById('level-num');
 const timerSpan = document.getElementById('timer');
+const retriesSpan = document.getElementById('retries');
 const gravityArrow = document.getElementById('gravity-arrow');
 
 // Game State
@@ -14,6 +15,19 @@ let gameState = 'MENU'; // MENU, INITIALIZING, BRIEFING, PLAYING, WIN, GAMEOVER,
 let currentLevel = 0;
 let startTime = 0;
 let pauseTime = 0;
+let retries = 3;
+
+function saveProgress() {
+    localStorage.setItem('worldInMotion_level', currentLevel);
+    localStorage.setItem('worldInMotion_retries', retries);
+}
+
+function loadProgress() {
+    const savedLevel = localStorage.getItem('worldInMotion_level');
+    const savedRetries = localStorage.getItem('worldInMotion_retries');
+    if (savedLevel !== null) currentLevel = parseInt(savedLevel);
+    if (savedRetries !== null) retries = parseInt(savedRetries);
+}
 let gravity = { x: 0, y: 0.5 };
 let mousePos = { x: 0, y: 0 };
 let particles = [];
@@ -133,9 +147,13 @@ const levels = [
     }
 ];
 
-// Dynamically generate levels 4 to 500 with increasing difficulty
+// Pre-fill up to 500 levels so chart logic works
 for (let i = 3; i < 500; i++) {
-    const difficulty = i / 500;
+    levels.push(null);
+}
+
+function generateRandomLevel(idx) {
+    const difficulty = Math.min(idx / 500, 1);
     const numObstacles = Math.floor(2 + difficulty * 15);
     const platforms = [
         { x: 0, y: 0, w: 800, h: 20 },
@@ -155,7 +173,7 @@ for (let i = 3; i < 500; i++) {
 
     const goalR = Math.max(10, 25 - difficulty * 15);
     
-    levels.push({
+    return {
         platforms: platforms,
         goal: { 
             x: 100 + Math.random() * 600, 
@@ -166,7 +184,7 @@ for (let i = 3; i < 500; i++) {
             x: 100 + Math.random() * 600, 
             y: 100 + Math.random() * 600 
         }
-    });
+    };
 }
 
 class Player {
@@ -288,10 +306,36 @@ class Player {
 let player;
 
 function initLevel(idx) {
+    if (idx > 2) {
+        levels[idx] = generateRandomLevel(idx);
+    }
     const level = levels[idx];
     player = new Player(level.start.x * scale, level.start.y * scale);
     levelNumSpan.innerText = idx + 1;
+    if(retriesSpan) retriesSpan.innerText = retries;
     startTime = Date.now();
+}
+
+function loseLevel() {
+    if (gameState !== 'PLAYING') return;
+    gameState = 'GAMEOVER';
+    createExplosion(player.x, player.y, '#ff3333', 50);
+    
+    retries--;
+    if(retriesSpan) retriesSpan.innerText = retries;
+    saveProgress();
+    
+    const msg = document.querySelector('#game-over p');
+    const btn = document.getElementById('retry-btn');
+    if (retries > 0) {
+        msg.innerText = `Orb structural integrity compromised. Retries left: ${retries}`;
+        btn.innerText = 'Retry Level';
+    } else {
+        msg.innerText = 'Critical Failure. Reality reset to Level 1.';
+        btn.innerText = 'Restart from Level 1';
+    }
+    
+    document.getElementById('game-over').classList.remove('hidden');
 }
 
 function winLevel() {
@@ -321,6 +365,7 @@ function winLevel() {
         chart.appendChild(node);
     });
 
+    saveProgress();
     document.getElementById('level-complete').classList.remove('hidden');
 }
 
@@ -435,7 +480,8 @@ function showBriefing() {
 document.getElementById('final-start-btn').addEventListener('click', () => {
     document.getElementById('briefing-screen').classList.add('hidden');
     gameState = 'PLAYING';
-    initLevel(0);
+    loadProgress();
+    initLevel(currentLevel);
 });
 
 // Audio System
@@ -540,7 +586,14 @@ document.getElementById('next-btn').addEventListener('click', () => {
 document.getElementById('retry-btn').addEventListener('click', () => {
     document.getElementById('game-over').classList.add('hidden');
     gameState = 'PLAYING';
-    initLevel(currentLevel);
+    if (retries > 0) {
+        initLevel(currentLevel);
+    } else {
+        retries = 3;
+        currentLevel = 0;
+        saveProgress();
+        initLevel(currentLevel);
+    }
 });
 
 function drawGoal(goal) {
@@ -711,8 +764,16 @@ function drawBackground() {
 function updateTimer() {
     if (gameState !== 'PLAYING') return;
     const elapsed = Math.floor((Date.now() - startTime) / 1000);
-    const m = Math.floor(elapsed / 60).toString().padStart(2, '0');
-    const s = (elapsed % 60).toString().padStart(2, '0');
+    const timeLimit = 45; // 45 seconds to finish
+    const timeLeft = timeLimit - elapsed;
+    
+    if (timeLeft <= 0) {
+        loseLevel();
+        return;
+    }
+    
+    const m = Math.floor(timeLeft / 60).toString().padStart(2, '0');
+    const s = (timeLeft % 60).toString().padStart(2, '0');
     timerSpan.innerText = `${m}:${s}`;
 }
 
