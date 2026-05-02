@@ -705,7 +705,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('start-btn').addEventListener('click', () => {
         document.getElementById('main-menu').classList.add('hidden');
-        showLevelSelect();
+        startInitialization();
     });
 
     document.getElementById('back-to-menu').addEventListener('click', () => {
@@ -718,21 +718,30 @@ document.addEventListener('DOMContentLoaded', () => {
         const grid = document.getElementById('level-select-chart');
         grid.innerHTML = '';
         
+        const savedLevel = parseInt(localStorage.getItem('worldInMotion_save_level') || '0');
+
         // Show all 500 levels
         for (let i = 0; i < 500; i++) {
             const node = document.createElement('div');
             node.className = 'level-node';
             node.innerText = i + 1;
             
-            // Highlight based on progress (saved in localStorage)
-            const savedLevel = parseInt(localStorage.getItem('worldInMotion_save_level') || '0');
-            if (i < savedLevel) node.classList.add('completed');
-            if (i === savedLevel) node.classList.add('current');
+            if (i < savedLevel) {
+                node.classList.add('completed');
+            } else if (i === savedLevel) {
+                node.classList.add('current');
+            } else {
+                node.classList.add('locked');
+                node.style.opacity = '0.3';
+                node.style.cursor = 'not-allowed';
+            }
             
             node.addEventListener('click', () => {
-                currentLevel = i;
-                selectScreen.classList.add('hidden');
-                startInitialization();
+                if (i <= savedLevel) {
+                    currentLevel = i;
+                    selectScreen.classList.add('hidden');
+                    showBriefing();
+                }
             });
             grid.appendChild(node);
         }
@@ -768,8 +777,44 @@ function startInitialization() {
 
 document.getElementById('enter-btn').addEventListener('click', () => {
     document.getElementById('init-screen').classList.add('hidden');
-    showBriefing();
+    showLevelSelectGlobal();
 });
+
+function showLevelSelectGlobal() {
+    // Re-use the logic from the DOMContentLoaded block
+    // We'll expose a global version of this function
+    const selectScreen = document.getElementById('level-select');
+    const grid = document.getElementById('level-select-chart');
+    grid.innerHTML = '';
+    
+    const savedLevel = parseInt(localStorage.getItem('worldInMotion_save_level') || '0');
+
+    for (let i = 0; i < 500; i++) {
+        const node = document.createElement('div');
+        node.className = 'level-node';
+        node.innerText = i + 1;
+        
+        if (i < savedLevel) {
+            node.classList.add('completed');
+        } else if (i === savedLevel) {
+            node.classList.add('current');
+        } else {
+            node.classList.add('locked');
+            node.style.opacity = '0.3';
+            node.style.cursor = 'not-allowed';
+        }
+        
+        node.addEventListener('click', () => {
+            if (i <= savedLevel) {
+                currentLevel = i;
+                selectScreen.classList.add('hidden');
+                showBriefing();
+            }
+        });
+        grid.appendChild(node);
+    }
+    selectScreen.classList.remove('hidden');
+}
 
 function showBriefing() {
     gameState = 'BRIEFING';
