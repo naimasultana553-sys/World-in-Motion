@@ -53,11 +53,23 @@
         </div>
 
         <!-- Main Menu Overlay -->
-        <div id="main-menu" class="overlay hidden">
+        <div id="main-menu" class="overlay">
             <div class="menu-card">
                 <h1>World In Motion</h1>
                 <p>Welcome back to the simulation.</p>
-                <button id="start-btn" class="btn">Start Game</button>
+                <button id="start-btn" class="btn">Access Sectors</button>
+            </div>
+        </div>
+
+        <!-- Level Selection Overlay -->
+        <div id="level-select" class="overlay hidden">
+            <div class="menu-card" style="max-width: 900px;">
+                <h1>Sector Selection</h1>
+                <p>Select a reality sector to synchronize.</p>
+                <div id="level-select-chart" class="level-grid">
+                    <!-- Nodes injected by JS -->
+                </div>
+                <button id="back-to-menu" class="btn secondary" style="margin-top: 20px;">Return</button>
             </div>
         </div>
 

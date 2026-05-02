@@ -566,25 +566,20 @@ function winLevel() {
     
     // Generate Level Chart
     const chart = document.getElementById('level-chart');
-    chart.innerHTML = '';
-    
-    levels.forEach((_, i) => {
-        const node = document.createElement('div');
-        node.className = 'level-node';
-        node.innerText = i + 1;
-        
-        if (i < currentLevel) {
-            node.classList.add('completed');
-        } else if (i === currentLevel) {
-            node.classList.add('completed'); // Current level just finished
-        } else if (i === currentLevel + 1) {
-            node.classList.add('unlocking'); // Next level unlocking animation
-        } else {
-            node.classList.add('locked');
+    if (chart) {
+        chart.innerHTML = '';
+        // Show only nearby levels for win screen
+        const start = Math.max(0, currentLevel - 2);
+        const end = Math.min(499, currentLevel + 7);
+        for (let i = start; i <= end; i++) {
+            const node = document.createElement('div');
+            node.className = 'level-node';
+            node.innerText = i + 1;
+            if (i <= currentLevel) node.classList.add('completed');
+            if (i === currentLevel + 1) node.classList.add('current');
+            chart.appendChild(node);
         }
-        
-        chart.appendChild(node);
-    });
+    }
 
     saveProgress();
     document.getElementById('level-complete').classList.remove('hidden');
@@ -710,8 +705,39 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('start-btn').addEventListener('click', () => {
         document.getElementById('main-menu').classList.add('hidden');
-        startInitialization();
+        showLevelSelect();
     });
+
+    document.getElementById('back-to-menu').addEventListener('click', () => {
+        document.getElementById('level-select').classList.add('hidden');
+        document.getElementById('main-menu').classList.remove('hidden');
+    });
+
+    function showLevelSelect() {
+        const selectScreen = document.getElementById('level-select');
+        const grid = document.getElementById('level-select-chart');
+        grid.innerHTML = '';
+        
+        // Show all 500 levels
+        for (let i = 0; i < 500; i++) {
+            const node = document.createElement('div');
+            node.className = 'level-node';
+            node.innerText = i + 1;
+            
+            // Highlight based on progress (saved in localStorage)
+            const savedLevel = parseInt(localStorage.getItem('worldInMotion_save_level') || '0');
+            if (i < savedLevel) node.classList.add('completed');
+            if (i === savedLevel) node.classList.add('current');
+            
+            node.addEventListener('click', () => {
+                currentLevel = i;
+                selectScreen.classList.add('hidden');
+                startInitialization();
+            });
+            grid.appendChild(node);
+        }
+        selectScreen.classList.remove('hidden');
+    }
 });
 
 function startInitialization() {
