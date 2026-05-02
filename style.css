@@ -316,10 +316,10 @@ input:checked + .slider:before {
 
 #auth-email, #auth-pass {
     width: 100%;
-    padding: 0.8rem;
-    padding-right: 60px; /* Space for the toggle button */
+    padding: 0.7rem;
+    padding-right: 65px; /* Space for the toggle button */
     font-family: 'Orbitron', sans-serif;
-    font-size: 0.85rem;
+    font-size: 0.75rem; /* Smaller font as requested */
     color: var(--text-color);
     background: rgba(0, 0, 0, 0.4);
     border: 2px solid var(--glass-border);
@@ -337,24 +337,30 @@ input:checked + .slider:before {
 
 .field-toggle {
     position: absolute;
-    right: 15px;
+    right: 5px;
     top: 50%;
     transform: translateY(-50%);
-    background: none;
+    background: rgba(255, 255, 255, 0.05);
     border: none;
+    border-left: 1px solid var(--glass-border); /* Distinct separator */
     color: var(--player-color);
     cursor: pointer;
-    font-size: 0.65rem;
+    font-size: 0.6rem;
     font-family: 'Orbitron', sans-serif;
-    font-weight: 700;
-    z-index: 10; /* Ensure it stays above the input */
+    font-weight: 900;
+    z-index: 10;
     letter-spacing: 1px;
-    opacity: 0.7;
-    transition: opacity 0.2s;
+    height: 70%;
+    width: 55px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: all 0.2s;
 }
 
 .field-toggle:hover {
-    opacity: 1;
+    background: rgba(0, 242, 255, 0.1);
+    color: white;
 }
 
 .auth-compact {
