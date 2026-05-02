@@ -317,9 +317,9 @@ input:checked + .slider:before {
 #auth-email, #auth-pass {
     width: 100%;
     padding: 0.7rem;
-    padding-right: 65px; /* Space for the toggle button */
+    padding-right: 65px;
     font-family: 'Orbitron', sans-serif;
-    font-size: 0.75rem; /* Smaller font as requested */
+    font-size: 16px; /* Critical to prevent iOS auto-zoom */
     color: var(--text-color);
     background: rgba(0, 0, 0, 0.4);
     border: 2px solid var(--glass-border);

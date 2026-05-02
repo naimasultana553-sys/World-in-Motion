@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>World in Motion | Reality Bending Puzzle</title>
     
     <!-- PWA Meta Tags & Icons -->
@@ -13,6 +13,17 @@
     
     <link rel="stylesheet" href="style.css">
     <meta name="description" content="A physics-based puzzle game where you control gravity to guide an orb through a futuristic world.">
+    <style>
+        /* Force no scroll and fix height for mobile */
+        html, body {
+            overflow: hidden;
+            height: 100%;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+            position: fixed; /* Prevent rubber-banding */
+        }
+    </style>
 </head>
 <body>
     <div id="game-container">
@@ -132,11 +143,11 @@
         <!-- Pause Overlay -->
         <div id="pause-screen" class="overlay hidden">
             <div class="menu-card auth-compact">
-                <h1>PAUSED</h1>
+                <h1 style="font-size: 2rem; color: var(--player-color);">PAUSED</h1>
                 <p>Reality stability maintained.</p>
-                <div class="auth-actions">
-                    <button id="resume-btn" class="btn">Resume</button>
-                    <button id="exit-btn" class="btn secondary">Exit</button>
+                <div class="auth-actions" style="flex-direction: row; gap: 10px;">
+                    <button id="resume-btn" class="btn" style="flex: 1;">Resume</button>
+                    <button id="exit-btn" class="btn secondary" style="flex: 1;">Exit</button>
                 </div>
             </div>
         </div>
