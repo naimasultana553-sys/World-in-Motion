@@ -727,6 +727,9 @@ window.addEventListener('touchmove', (e) => {
 }, { passive: false });
 window.addEventListener('touchstart', (e) => {
     handlePointer(e.touches[0].clientX, e.touches[0].clientY);
+    if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume();
+    }
 }, { passive: false });
 
 // UI Initialization
@@ -956,7 +959,12 @@ document.getElementById('final-start-btn').addEventListener('click', () => {
 
 // Audio System
 function initAudio() {
-    if (audioCtx) return;
+    if (audioCtx) {
+        if (audioCtx.state === 'suspended') {
+            audioCtx.resume();
+        }
+        return;
+    }
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     
     // Master Gain
