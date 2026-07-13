@@ -97,8 +97,8 @@ function createInitObjects() {
     initObjects = [];
     for (let i = 0; i < 30; i++) {
         initObjects.push({
-            x: Math.random() * canvas.width,
-            y: Math.random() * canvas.height,
+            x: Math.random() * window.innerWidth,
+            y: Math.random() * window.innerHeight,
             vx: (Math.random() - 0.5) * 2,
             vy: (Math.random() - 0.5) * 2,
             size: Math.random() * 15 + 5,
@@ -141,12 +141,11 @@ const levels = [
     {
         platforms: [
             { x: 0, y: 700, w: 800, h: 50, type: 'wall' }, // Ground
-            { x: 200, y: 500, w: 400, h: 20, type: 'platform' }, // Step
             { x: 0, y: 0, w: 20, h: 800, type: 'wall' },
             { x: 780, y: 0, w: 20, h: 800, type: 'wall' },
             { x: 0, y: 0, w: 800, h: 20, type: 'wall' }
         ],
-        goal: { x: 700, y: 650, r: 25 },
+        goal: { x: 700, y: 650, r: 35 }, // Larger goal size for easier targeting
         start: { x: 100, y: 100 }
     },
     {
@@ -242,6 +241,14 @@ function getLevelTheme(level) {
     return themes[Math.floor((level-1) / 20) % themes.length];
 }
 
+function pointRectOverlap(px, py, pr, rect) {
+    const closestX = Math.max(rect.x, Math.min(px, rect.x + rect.w));
+    const closestY = Math.max(rect.y, Math.min(py, rect.y + rect.h));
+    const dx = px - closestX;
+    const dy = py - closestY;
+    return (dx * dx + dy * dy) < (pr * pr);
+}
+
 function generateRandomLevel(idx) {
     const L = idx + 1;
     const params = getDifficultyParams(L);
@@ -292,21 +299,55 @@ function generateRandomLevel(idx) {
 
     const goalR = Math.max(10, 25 - (params.difficulty * 15));
     
+    let start = { x: 100, y: 100 };
+    let goal = { x: 700, y: 700, r: goalR };
+    let attempts = 0;
+    const minDistance = 250;
+    
+    while (attempts < 150) {
+        const testStart = {
+            x: 100 + Math.random() * 600,
+            y: 100 + Math.random() * 600
+        };
+        const testGoal = {
+            x: 100 + Math.random() * 600,
+            y: 100 + Math.random() * 600
+        };
+        
+        const dx = testStart.x - testGoal.x;
+        const dy = testStart.y - testGoal.y;
+        const dist = Math.hypot(dx, dy);
+        
+        if (dist >= minDistance) {
+            let overlap = false;
+            // Check if start or goal overlaps with any of the obstacle platforms (indices >= 4)
+            for (let i = 4; i < platforms.length; i++) {
+                const p = platforms[i];
+                const padding = 25; // Add extra padding for player navigation space
+                if (pointRectOverlap(testStart.x, testStart.y, 10 + padding, p) ||
+                    pointRectOverlap(testGoal.x, testGoal.y, goalR + padding, p)) {
+                    overlap = true;
+                    break;
+                }
+            }
+            if (!overlap) {
+                start = testStart;
+                goal = { x: testGoal.x, y: testGoal.y, r: goalR };
+                break;
+            }
+        }
+        attempts++;
+    }
+    
     return {
         params: params,
         theme: theme,
         platforms: platforms,
-        goal: { 
-            x: 100 + Math.random() * 600, 
-            y: 100 + Math.random() * 600, 
-            r: goalR 
-        },
-        start: { 
-            x: 100 + Math.random() * 600, 
-            y: 100 + Math.random() * 600 
-        }
+        goal: goal,
+        start: start
     };
 }
+
 
 // Utility for laser collision
 function distSq(v, w) { return (v.x - w.x) ** 2 + (v.y - w.y) ** 2 }
@@ -507,10 +548,10 @@ class Player {
         if (this.params.active_mechanics.includes('fake_balls')) {
             const time = Date.now() / 1000;
             for (let i = 0; i < 3; i++) {
-                const fx = this.x + Math.cos(time + i * 2) * 100;
-                const fy = this.y + Math.sin(time + i * 2) * 100;
+                const fx = this.x + Math.cos(time + i * 2) * 100 * scale;
+                const fy = this.y + Math.sin(time + i * 2) * 100 * scale;
                 ctx.beginPath();
-                ctx.arc(fx, fy, this.radius, 0, Math.PI * 2);
+                ctx.arc(fx, fy, this.radius * scale, 0, Math.PI * 2);
                 ctx.fillStyle = 'rgba(0, 242, 255, 0.2)';
                 ctx.strokeStyle = 'rgba(0, 242, 255, 0.5)';
                 ctx.stroke();
@@ -609,7 +650,15 @@ function winLevel() {
         }
     }
 
-    saveProgress();
+    saveProgress(); // Initial save
+    
+    // Unlock next level immediately
+    if (isGuest) {
+        localStorage.setItem('worldInMotion_maxLevel', Math.max(parseInt(localStorage.getItem('worldInMotion_maxLevel') || '0'), currentLevel + 1));
+    } else if (currentEmail && usersDB[currentEmail]) {
+        usersDB[currentEmail].maxLevel = Math.max(usersDB[currentEmail].maxLevel || 0, currentLevel + 1);
+        localStorage.setItem('worldInMotion_usersDB', JSON.stringify(usersDB));
+    }
     document.getElementById('level-complete').classList.remove('hidden');
 }
 
@@ -752,17 +801,20 @@ document.addEventListener('DOMContentLoaded', () => {
         showLevelSelectGlobal();
     });
 
-    document.getElementById('fullscreen-btn').addEventListener('click', () => {
-        if (!document.fullscreenElement) {
-            document.documentElement.requestFullscreen().catch(err => {
-                alert(`Error: ${err.message}`);
-            });
-            document.getElementById('fullscreen-btn').innerText = 'Exit Fullscreen';
-        } else {
-            document.exitFullscreen();
-            document.getElementById('fullscreen-btn').innerText = 'Full Screen';
-        }
-    });
+    const fsBtn = document.getElementById('fullscreen-btn');
+    if (fsBtn) {
+        fsBtn.addEventListener('click', () => {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    alert(`Error: ${err.message}`);
+                });
+                fsBtn.innerText = 'Exit Fullscreen';
+            } else {
+                document.exitFullscreen();
+                fsBtn.innerText = 'Full Screen';
+            }
+        });
+    }
 
     function showLevelSelect() {
         showLevelSelectGlobal();
@@ -781,10 +833,19 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     document.getElementById('resume-btn').addEventListener('click', () => {
-        const prevState = document.getElementById('pause-screen').dataset.prevState || 'PLAYING';
+        let prevState = document.getElementById('pause-screen').dataset.prevState || 'PLAYING';
+        
+        // If we were paused during splash and splash finished while paused, move to PLAYING
+        if (prevState === 'LEVEL_SPLASH' && document.getElementById('level-splash').classList.contains('hidden')) {
+            prevState = 'PLAYING';
+        }
+        
         gameState = prevState;
         if (pauseTime > 0) {
-            startTime += (Date.now() - pauseTime); // Adjust timer
+            const duration = Date.now() - pauseTime;
+            startTime += duration; // Adjust level timer
+            if (player) player.creationTime += duration; // Adjust player animation timer
+            pauseTime = 0;
         }
         document.getElementById('pause-screen').classList.add('hidden');
     });
@@ -844,6 +905,7 @@ function showLevelSelectGlobal() {
         
         grid.appendChild(node);
     }
+    gameState = 'MENU';
     selectScreen.classList.remove('hidden');
 }
 
@@ -867,7 +929,7 @@ function startInitialization() {
             status.innerText = 'System Stabilized';
             subtext.innerText = 'Field Ready.';
             enterBtn.classList.remove('hidden');
-            createExplosion(canvas.width/2, canvas.height/2, '#00f2ff', 30);
+            createExplosion(window.innerWidth/2, window.innerHeight/2, '#00f2ff', 30);
         }
         bar.style.width = `${progress}%`;
     }, 50);
@@ -878,12 +940,7 @@ document.getElementById('enter-btn').addEventListener('click', () => {
     showLevelSelectGlobal();
 });
 
-function showLevelSelectGlobal() {
-    // This is now redundant as we moved it up, but let's keep the reference clear
-    const selectScreen = document.getElementById('level-select');
-    const grid = document.getElementById('level-select-chart');
-    // Logic already handled in the global function above
-}
+
 
 function showBriefing() {
     gameState = 'BRIEFING';
@@ -1008,7 +1065,7 @@ function drawBackground() {
     
     // Background color based on theme
     ctx.fillStyle = theme.bg;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
 
     // Twinkling & Moving Starfield
     stars.forEach(star => {
@@ -1017,20 +1074,20 @@ function drawBackground() {
         star.y += star.vy;
         
         // Wrap around
-        if (star.x < 0) star.x = canvas.width;
-        if (star.x > canvas.width) star.x = 0;
-        if (star.y < 0) star.y = canvas.height;
-        if (star.y > canvas.height) star.y = 0;
+        if (star.x < 0) star.x = window.innerWidth;
+        if (star.x > window.innerWidth) star.x = 0;
+        if (star.y < 0) star.y = window.innerHeight;
+        if (star.y > window.innerHeight) star.y = 0;
 
         // Twinkle effect
         star.twinkle += star.twinkleSpeed;
         const opacity = 0.3 + (Math.sin(star.twinkle) + 1) * 0.35;
         
-        const sx = (star.x - (mousePos.x * star.speed)) % canvas.width;
-        const sy = (star.y - (mousePos.y * star.speed)) % canvas.height;
+        const sx = (star.x - (mousePos.x * star.speed)) % window.innerWidth;
+        const sy = (star.y - (mousePos.y * star.speed)) % window.innerHeight;
         
         ctx.beginPath();
-        ctx.arc(sx < 0 ? sx + canvas.width : sx, sy < 0 ? sy + canvas.height : sy, star.size, 0, Math.PI * 2);
+        ctx.arc(sx < 0 ? sx + window.innerWidth : sx, sy < 0 ? sy + window.innerHeight : sy, star.size, 0, Math.PI * 2);
         ctx.fillStyle = `rgba(255, 255, 255, ${opacity})`;
         
         // Add glow to brightest stars
@@ -1045,8 +1102,8 @@ function drawBackground() {
 
     // Initialization Simulation
     if (gameState === 'INITIALIZING') {
-        const dx = mousePos.x - canvas.width / 2;
-        const dy = mousePos.y - canvas.height / 2;
+        const dx = mousePos.x - window.innerWidth / 2;
+        const dy = mousePos.y - window.innerHeight / 2;
         const angle = Math.atan2(dy, dx);
         const gx = Math.cos(angle) * GRAVITY_STRENGTH;
         const gy = Math.sin(angle) * GRAVITY_STRENGTH;
@@ -1060,8 +1117,8 @@ function drawBackground() {
             o.y += o.vy;
 
             // Bounce
-            if (o.x < 0 || o.x > canvas.width) o.vx *= -1;
-            if (o.y < 0 || o.y > canvas.height) o.vy *= -1;
+            if (o.x < 0 || o.x > window.innerWidth) o.vx *= -1;
+            if (o.y < 0 || o.y > window.innerHeight) o.vy *= -1;
 
             ctx.beginPath();
             if (o.type === 'circle') {
@@ -1085,8 +1142,8 @@ function drawBackground() {
 
     // Main Menu Galaxy Animation
     if (gameState === 'MENU' || gameState === 'BRIEFING' || gameState === 'LOGIN' || gameState === 'INITIALIZING') {
-        const cx = canvas.width / 2;
-        const cy = canvas.height / 2;
+        const cx = window.innerWidth / 2;
+        const cy = window.innerHeight / 2;
         
         ctx.save();
         ctx.globalCompositeOperation = 'lighter';
@@ -1131,22 +1188,22 @@ function drawBackground() {
 
     // Subtle shifting grid
     const spacing = 150;
-    const shiftX = (mousePos.x / canvas.width) * 20;
-    const shiftY = (mousePos.y / canvas.height) * 20;
+    const shiftX = (mousePos.x / window.innerWidth) * 20;
+    const shiftY = (mousePos.y / window.innerHeight) * 20;
 
     ctx.strokeStyle = 'rgba(188, 19, 254, 0.1)';
     ctx.lineWidth = 1;
 
-    for (let x = -spacing; x < canvas.width + spacing; x += spacing) {
+    for (let x = -spacing; x < window.innerWidth + spacing; x += spacing) {
         ctx.beginPath();
         ctx.moveTo(x + shiftX, 0);
-        ctx.lineTo(x + shiftX, canvas.height);
+        ctx.lineTo(x + shiftX, window.innerHeight);
         ctx.stroke();
     }
-    for (let y = -spacing; y < canvas.height + spacing; y += spacing) {
+    for (let y = -spacing; y < window.innerHeight + spacing; y += spacing) {
         ctx.beginPath();
         ctx.moveTo(0, y + shiftY);
-        ctx.lineTo(canvas.width, y + shiftY);
+        ctx.lineTo(window.innerWidth, y + shiftY);
         ctx.stroke();
     }
 }
@@ -1169,7 +1226,7 @@ function updateTimer() {
 
 function gameLoop() {
     // Clear
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
 
     drawBackground();
 
@@ -1185,6 +1242,7 @@ function gameLoop() {
 
     // Draw platforms
     const level = levels[currentLevel];
+    if (!level) return; // Safety check
     const theme = level.theme || { main: '#00f2ff', accent: '#bc13fe', bg: '#05050a' };
     
     ctx.shadowBlur = 10;
@@ -1194,23 +1252,26 @@ function gameLoop() {
         ctx.save();
         
         // Behavior Updates
-        if (p.type === 'moving' || p.type === 'enemy') {
-            p.x += p.vx;
-            p.y += p.vy;
-            if (p.x < 20 || p.x + p.w > 780) p.vx *= -1;
-            if (p.y < 20 || p.y + p.h > 780) p.vy *= -1;
-        } else if (p.type === 'rotating') {
-            p.rotation += p.rotationSpeed;
-        } else if (p.type === 'disappearing') {
-            p.timer += 0.016;
-            if (p.timer > 2) {
-                p.state = p.state === 'visible' ? 'hidden' : 'visible';
-                p.timer = 0;
+        if (gameState === 'PLAYING') {
+            if (p.type === 'moving' || p.type === 'enemy') {
+                p.x += p.vx;
+                p.y += p.vy;
+                if (p.x < 20 || p.x + p.w > 780) p.vx *= -1;
+                if (p.y < 20 || p.y + p.h > 780) p.vy *= -1;
+            } else if (p.type === 'rotating') {
+                p.rotation += p.rotationSpeed;
+            } else if (p.type === 'disappearing') {
+                p.timer += 0.016;
+                if (p.timer > 2) {
+                    p.state = p.state === 'visible' ? 'hidden' : 'visible';
+                    p.timer = 0;
+                }
             }
-            if (p.state === 'hidden') {
-                ctx.restore();
-                return;
-            }
+        }
+
+        if (p.type === 'disappearing' && p.state === 'hidden') {
+            ctx.restore();
+            return;
         }
 
         // Color/Style
@@ -1249,7 +1310,7 @@ function gameLoop() {
                 const playerX = player.x;
                 const playerY = player.y;
                 const dist = Math.hypot(playerX - cx, playerY - cy);
-                if (dist < player.radius + 15 * scale) loseLevel();
+                if (dist < (player.radius + 15) * scale) loseLevel();
             }
         } else {
             ctx.fillRect(-p.w/2 * scale, -p.h/2 * scale, p.w * scale, p.h * scale);
